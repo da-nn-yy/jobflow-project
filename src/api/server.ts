@@ -1,34 +1,44 @@
 import Fastify from "fastify";
 import type { EngineConfig } from "../config/defaults.js";
-import type { JobService } from "../services/job-service.js";
-import type { WorkflowService } from "../services/workflow-service.js";
-import type { ExecutionService } from "../services/execution-service.js";
+import type { AppContainer } from "../container.js";
 import { registerRoutes } from "./routes.js";
-import type { Logger } from "../utils/logger.js";
+import { registerAdminRoutes } from "./admin-routes.js";
+import { registerScheduleRoutes } from "./schedule-routes.js";
+import { registerWebhookRoutes } from "./webhook-routes.js";
+import { registerRequestContext } from "../middleware/request-context.js";
+import { registerRateLimit } from "../middleware/rate-limit.js";
+import { registerAuthHook } from "../middleware/auth-hook.js";
 
-export async function createServer(
-  config: EngineConfig,
-  services: {
-    jobs: JobService;
-    workflows: WorkflowService;
-    execution: ExecutionService;
-    log: Logger;
-  },
-) {
+export async function createServer(config: EngineConfig, container: AppContainer) {
   const app = Fastify({ logger: false });
 
+  registerRequestContext(app);
+  registerRateLimit(app);
+  registerAuthHook(app, container.apiKeyAuth);
+
   app.setErrorHandler((err, _req, reply) => {
-    const status = err.name === "ValidationError" ? 400 : err.name === "NotFoundError" ? 404 : 500;
-    services.log.error("request error", { err: err.message, code: (err as { code?: string }).code });
+    const status =
+      err.name === "ValidationError" ? 400 : err.name === "NotFoundError" ? 404 : err.name === "JobflowError" && (err as { code?: string }).code === "UNAUTHORIZED" ? 401 : 500;
+    container.log.error("request error", { err: err.message, code: (err as { code?: string }).code });
     return reply.code(status).send({
       error: err.message,
       code: (err as { code?: string }).code ?? "INTERNAL_ERROR",
     });
   });
 
-  registerRoutes(app, services.jobs, services.workflows, services.execution);
+  registerRoutes(app, container.jobService, container.workflowService, container.executionService);
+  registerScheduleRoutes(app, container.scheduleService);
+  registerWebhookRoutes(app, container.webhookService);
+  registerAdminRoutes(app, {
+    deadLetter: container.deadLetterStore,
+    webhookDeliveries: container.webhookDeliveries,
+    audit: container.auditService,
+    handlers: container.handlerRegistry,
+    metrics: container.metricsRegistry,
+  });
 
   await app.listen({ port: config.port, host: "0.0.0.0" });
-  services.log.info("server listening", { port: config.port });
+  container.cronTicker.start();
+  container.log.info("server listening", { port: config.port });
   return app;
 }
