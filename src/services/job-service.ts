@@ -8,6 +8,8 @@ import { asJobId, newJobId } from "../utils/ids.js";
 import type { Clock } from "../utils/clock.js";
 import { DEFAULT_RETRY_POLICY } from "../domain/retry-policy.js";
 import type { Logger } from "../utils/logger.js";
+import type { HandlerRegistry } from "../handlers/registry.js";
+import type { HandlerResolver } from "../handlers/resolver.js";
 
 export class JobService {
   private readonly validator = new JobDefinitionValidator();
@@ -16,6 +18,8 @@ export class JobService {
     private readonly store: JobDefinitionStore,
     private readonly clock: Clock,
     private readonly log: Logger,
+    private readonly handlers?: HandlerRegistry,
+    private readonly resolver?: HandlerResolver,
   ) {}
 
   async register(input: unknown): Promise<JobDefinition> {
@@ -37,6 +41,10 @@ export class JobService {
       updatedAt: now,
     };
 
+    for (const t of definition.tasks) {
+      this.handlers?.assertKnown(t.handler);
+    }
+    this.resolver?.resolveTasks(definition.tasks);
     this.validator.validate(definition);
     this.validator.validateDependencyOrder(definition.tasks);
     await this.store.save(definition);
