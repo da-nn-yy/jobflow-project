@@ -10,10 +10,12 @@ import { RuleEngine } from "./rule-engine.js";
 import { NotFoundError } from "../domain/errors.js";
 import type { Logger } from "../utils/logger.js";
 import type { Clock } from "../utils/clock.js";
+import type { RunLockRegistry } from "../engine/run-lock.js";
+import type { MetricsCollector } from "../metrics/collector.js";
 
 export class ExecutionService {
   private readonly runContextFactory = new RunContextFactory();
-  private readonly locks = new Set<RunId>();
+  private readonly localLocks = new Set<RunId>();
 
   constructor(
     private readonly jobStore: JobDefinitionStore,
@@ -26,14 +28,18 @@ export class ExecutionService {
     private readonly ruleEngine: RuleEngine,
     private readonly clock: Clock,
     private readonly log: Logger,
+    private readonly runLocks?: RunLockRegistry,
+    private readonly metrics?: MetricsCollector,
   ) {}
 
   async executeRun(runId: RunId): Promise<void> {
-    if (this.locks.has(runId)) {
+    if (this.localLocks.has(runId)) {
       this.log.warn("run already executing", { runId });
       return;
     }
-    this.locks.add(runId);
+    this.localLocks.add(runId);
+    const owner = "execution-service";
+    this.runLocks?.acquire(runId, owner);
 
     try {
       const run = await this.runStore.get(runId);
@@ -80,12 +86,14 @@ export class ExecutionService {
         }
 
         const taskRun = workflow.tasks.find((t) => t.definitionTaskId === nextDef.id)!;
+        const started = Date.now();
         const result = await this.taskExecutor.run(
           taskRun,
           nextDef,
           definition.retryPolicy,
           workflow.context,
         );
+        this.metrics?.recordTaskDuration(nextDef.handler, Date.now() - started);
 
         workflow = await this.updateTask(workflow, result.task);
 
@@ -122,7 +130,8 @@ export class ExecutionService {
         }
       }
     } finally {
-      this.locks.delete(runId);
+      this.localLocks.delete(runId);
+      this.runLocks?.release(runId, owner);
     }
   }
 
