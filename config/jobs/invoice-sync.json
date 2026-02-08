@@ -1,0 +1,12 @@
+{
+  "id": "invoice_sync",
+  "name": "Invoice sync pipeline",
+  "version": 3,
+  "tasks": [
+    { "id": "fetch", "name": "Fetch ERP batch", "handler": "invoice.fetch", "timeoutMs": 30000 },
+    { "id": "normalize", "name": "Normalize lines", "handler": "invoice.normalize", "timeoutMs": 15000, "dependsOn": ["fetch"] },
+    { "id": "post", "name": "Post to GL", "handler": "invoice.post_gl", "timeoutMs": 25000, "dependsOn": ["normalize"] }
+  ],
+  "constraints": [{ "id": "tenant_required", "expression": "ctx.tenantId", "severity": "block" }],
+  "metadata": { "team": "finance-platform", "sla": "4h" }
+}
