@@ -1,0 +1,10 @@
+services:
+  jobflow:
+    build: .
+    ports:
+      - "4100:4100"
+    environment:
+      JOBFLOW_CONFIG: /app/config/engine.default.json
+      JOBFLOW_AUTH_DISABLED: "1"
+    volumes:
+      - ./config:/app/config:ro
