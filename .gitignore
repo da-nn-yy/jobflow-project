@@ -1,6 +1,8 @@
 node_modules/
 dist/
 tools/
+data/journal/
+data/snapshots/
 coverage/
 *.log
 .env
