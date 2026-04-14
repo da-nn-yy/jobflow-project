@@ -1,6 +1,7 @@
 import type { JobConstraint } from "../domain/job-definition.js";
 import { ExecutionError } from "../domain/errors.js";
 import { FailureReason } from "../domain/types.js";
+import { ExpressionEvaluator } from "../expressions/evaluator.js";
 
 export interface ConstraintContext {
   context: Record<string, unknown>;
@@ -8,6 +9,8 @@ export interface ConstraintContext {
 }
 
 export class ConstraintValidator {
+  private readonly expressions = new ExpressionEvaluator();
+
   evaluate(constraints: JobConstraint[], ctx: ConstraintContext): { warnings: string[]; blocks: string[] } {
     const warnings: string[] = [];
     const blocks: string[] = [];
@@ -36,19 +39,20 @@ export class ConstraintValidator {
   }
 
   private evaluateExpression(expr: string, ctx: ConstraintContext): boolean {
-    if (expr.startsWith("ctx.")) {
-      const key = expr.slice(4);
-      const val = ctx.context[key];
-      return val === undefined || val === null || val === "";
+    if (expr === "always") return true;
+    const evalCtx: Record<string, unknown> = {
+      ctx: ctx.context,
+      output: ctx.taskOutputs,
+    };
+    try {
+      return this.expressions.evaluateBoolean(expr, evalCtx);
+    } catch {
+      if (expr.startsWith("ctx.")) {
+        const key = expr.slice(4);
+        const val = ctx.context[key];
+        return val === undefined || val === null || val === "";
+      }
+      return false;
     }
-    if (expr.startsWith("output.")) {
-      const [, taskId, field] = expr.split(".");
-      const out = ctx.taskOutputs[taskId];
-      return !out || out[field] === undefined;
-    }
-    if (expr === "always") {
-      return true;
-    }
-    return false;
   }
 }
