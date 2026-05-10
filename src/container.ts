@@ -29,6 +29,7 @@ import { WebhookService } from "./services/webhook-service.js";
 import { AuditService } from "./services/audit-service.js";
 import { TenantService } from "./services/tenant-service.js";
 import { EventBus } from "./services/event-bus.js";
+import { BatchService } from "./services/batch-service.js";
 import { HandlerRegistry } from "./handlers/registry.js";
 import { HandlerResolver } from "./handlers/resolver.js";
 import { MetricsRegistry } from "./metrics/registry.js";
@@ -38,6 +39,17 @@ import { AuditTrail } from "./audit/trail.js";
 import { WebhookDispatcher } from "./webhooks/dispatcher.js";
 import { WebhookDeliveryStore } from "./webhooks/delivery-store.js";
 import { ApiKeyStore, ApiKeyAuthenticator } from "./security/auth.js";
+import { BatchCoordinator } from "./batch/coordinator.js";
+import { TemplateInstantiator } from "./templates/instantiator.js";
+import { RunReplayer } from "./replay/replayer.js";
+import { RunQueryService } from "./query/run-query-service.js";
+import { JobBundleImporter } from "./import/job-bundle-importer.js";
+import { NotificationService } from "./notifications/service.js";
+import { EmailNotificationChannel } from "./notifications/email-channel.js";
+import { RecoveryService } from "./persistence/recovery-service.js";
+import { CheckpointStore } from "./persistence/checkpoint-store.js";
+import { HttpHandlerInvoker } from "./handlers/http/invoker.js";
+import { PluginLoader } from "./plugins/loader.js";
 import type { TenantId } from "./domain/tenant.js";
 
 export interface AppContainer {
@@ -50,6 +62,7 @@ export interface AppContainer {
   webhookService: WebhookService;
   auditService: AuditService;
   tenantService: TenantService;
+  batchService: BatchService;
   handlerRegistry: HandlerRegistry;
   metricsRegistry: MetricsRegistry;
   eventBus: EventBus;
@@ -59,6 +72,15 @@ export interface AppContainer {
   workerPool: WorkerPool;
   cronTicker: CronTicker;
   runLocks: RunLockRegistry;
+  batchCoordinator: BatchCoordinator;
+  templateInstantiator: TemplateInstantiator;
+  runReplayer: RunReplayer;
+  runQueryService: RunQueryService;
+  jobImporter: JobBundleImporter;
+  notificationService: NotificationService;
+  recoveryService: RecoveryService;
+  httpInvoker: HttpHandlerInvoker;
+  pluginLoader: PluginLoader;
 }
 
 export function createContainer(config?: EngineConfig): AppContainer {
@@ -76,6 +98,7 @@ export function createContainer(config?: EngineConfig): AppContainer {
   const metricsRegistry = new MetricsRegistry();
   const eventBus = new EventBus();
   const runLocks = new RunLockRegistry();
+  const workerPool = new WorkerPool(resolved.workerConcurrency);
 
   const metricsCollector = new MetricsCollector(metricsRegistry);
   eventBus.subscribe((e) => metricsCollector.onDomainEvent(e));
@@ -104,8 +127,7 @@ export function createContainer(config?: EngineConfig): AppContainer {
   const tenantService = new TenantService(jobStore, runStore);
   tenantService.register("tenant_dev" as TenantId, "development");
 
-  const apiKeyStore = new ApiKeyStore();
-  const apiKeyAuth = new ApiKeyAuthenticator(apiKeyStore);
+  const apiKeyAuth = new ApiKeyAuthenticator(new ApiKeyStore());
 
   const webhookService = new WebhookService(
     webhookStore,
@@ -113,17 +135,28 @@ export function createContainer(config?: EngineConfig): AppContainer {
     webhookDeliveries,
   );
 
+  const notificationService = new NotificationService([
+    new EmailNotificationChannel(
+      { from: "jobflow@internal", smtpHost: "smtp.internal", enabled: true },
+      log.child({ component: "email" }),
+    ),
+  ]);
+
   eventBus.subscribe((e) => {
-    if (e.type === "run.failed" || e.type === "run.completed") {
-      void webhookService.emit("tenant_dev" as TenantId, e.type === "run.failed" ? "run.failed" : "run.completed", {
-        runId: e.runId,
-      });
+    if (e.type === "run.failed") {
+      void webhookService.emit("tenant_dev" as TenantId, "run.failed", { runId: e.runId });
+      void notificationService.notifyRunFailure(e.runId, "workflow", e.reason);
+    }
+    if (e.type === "run.completed") {
+      void webhookService.emit("tenant_dev" as TenantId, "run.completed", { runId: e.runId });
     }
   });
 
   const jobService = new JobService(jobStore, clock, log.child({ component: "jobs" }), handlerRegistry, handlerResolver);
   const workflowService = new WorkflowService(jobStore, workflowStore, runStore, clock);
   const scheduleService = new ScheduleService(scheduleStore, clock);
+  const recoveryService = new RecoveryService(new CheckpointStore(), workflowStore, clock, log);
+
   const executionService = new ExecutionService(
     jobStore,
     workflowStore,
@@ -139,6 +172,14 @@ export function createContainer(config?: EngineConfig): AppContainer {
     metricsCollector,
   );
 
+  const batchCoordinator = new BatchCoordinator(
+    workflowService,
+    executionService,
+    workerPool,
+    log.child({ component: "batch" }),
+    clock,
+  );
+
   const cronTicker = new CronTicker(scheduleService, workflowService, executionService, log.child({ component: "cron" }));
 
   return {
@@ -151,14 +192,24 @@ export function createContainer(config?: EngineConfig): AppContainer {
     webhookService,
     auditService,
     tenantService,
+    batchService: new BatchService(batchCoordinator),
     handlerRegistry,
     metricsRegistry,
     eventBus,
     apiKeyAuth,
     deadLetterStore,
     webhookDeliveries,
-    workerPool: new WorkerPool(resolved.workerConcurrency),
+    workerPool,
     cronTicker,
     runLocks,
+    batchCoordinator,
+    templateInstantiator: new TemplateInstantiator(clock),
+    runReplayer: new RunReplayer(workflowService, executionService, workflowStore, log),
+    runQueryService: new RunQueryService(runStore),
+    jobImporter: new JobBundleImporter(jobService, log),
+    notificationService,
+    recoveryService,
+    httpInvoker: new HttpHandlerInvoker(log.child({ component: "http-handlers" })),
+    pluginLoader: new PluginLoader(),
   };
 }
