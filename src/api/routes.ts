@@ -3,6 +3,7 @@ import type { JobService } from "../services/job-service.js";
 import type { WorkflowService } from "../services/workflow-service.js";
 import type { ExecutionService } from "../services/execution-service.js";
 import { asJobId, asRunId } from "../utils/ids.js";
+import { RunExporter } from "../export/run-exporter.js";
 
 export function registerRoutes(
   app: FastifyInstance,
@@ -47,5 +48,12 @@ export function registerRoutes(
     await execution.executeRun(asRunId(req.params.runId));
     const wf = await workflows.getWorkflowByRun(asRunId(req.params.runId));
     return wf;
+  });
+
+  app.get<{ Params: { runId: string } }>("/runs/:runId/export.csv", async (req, reply) => {
+    const wf = await workflows.getWorkflowByRun(asRunId(req.params.runId));
+    const csv = new RunExporter().toCsv(wf);
+    reply.header("content-type", "text/csv");
+    return csv;
   });
 }

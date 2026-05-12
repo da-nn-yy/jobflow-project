@@ -5,6 +5,7 @@ import { registerRoutes } from "./routes.js";
 import { registerAdminRoutes } from "./admin-routes.js";
 import { registerScheduleRoutes } from "./schedule-routes.js";
 import { registerWebhookRoutes } from "./webhook-routes.js";
+import { registerV2Routes } from "./v2/routes.js";
 import { registerRequestContext } from "../middleware/request-context.js";
 import { registerRateLimit } from "../middleware/rate-limit.js";
 import { registerAuthHook } from "../middleware/auth-hook.js";
@@ -35,6 +36,15 @@ export async function createServer(config: EngineConfig, container: AppContainer
     audit: container.auditService,
     handlers: container.handlerRegistry,
     metrics: container.metricsRegistry,
+  });
+
+  registerV2Routes(app, {
+    batch: container.batchCoordinator,
+    templates: container.templateInstantiator,
+    jobs: container.jobService,
+    runQuery: container.runQueryService,
+    replayer: container.runReplayer,
+    importer: container.jobImporter,
   });
 
   await app.listen({ port: config.port, host: "0.0.0.0" });
