@@ -1,0 +1,12 @@
+{
+  "id": "nightly_reconcile",
+  "name": "Nightly ledger reconciliation",
+  "version": 2,
+  "tasks": [
+    { "id": "extract", "name": "Extract ledger", "handler": "reconcile.extract", "timeoutMs": 120000 },
+    { "id": "match", "name": "Match transactions", "handler": "reconcile.match", "timeoutMs": 180000, "dependsOn": ["extract"] },
+    { "id": "notify", "name": "Notify ops", "handler": "external.risky_notify", "timeoutMs": 8000, "dependsOn": ["match"], "optional": true }
+  ],
+  "constraints": [],
+  "metadata": { "ledger": "US_PRIMARY" }
+}

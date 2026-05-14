@@ -1,0 +1,11 @@
+{
+  "id": "customer_onboarding",
+  "name": "Customer onboarding pipeline",
+  "version": 1,
+  "tasks": [
+    { "id": "validate", "name": "KYC validation", "handler": "onboard.validate", "timeoutMs": 25000 },
+    { "id": "provision", "name": "Provision resources", "handler": "onboard.provision", "timeoutMs": 60000, "dependsOn": ["validate"] }
+  ],
+  "constraints": [{ "id": "customer_id", "expression": "ctx.customerId != null && ctx.customerId != \"\"", "severity": "block" }],
+  "metadata": { "team": "platform" }
+}

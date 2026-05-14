@@ -1,0 +1,11 @@
+{
+  "id": "weekly_ops_report",
+  "name": "Weekly operations report",
+  "version": 1,
+  "tasks": [
+    { "id": "aggregate", "name": "Aggregate metrics", "handler": "report.aggregate", "timeoutMs": 90000 },
+    { "id": "publish", "name": "Publish to BI", "handler": "report.aggregate", "timeoutMs": 45000, "dependsOn": ["aggregate"] }
+  ],
+  "constraints": [],
+  "metadata": { "schedule": "weekly" }
+}
