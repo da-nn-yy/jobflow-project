@@ -1,0 +1,10 @@
+{
+  "id": "finance_daily_batch",
+  "name": "Finance daily batch",
+  "tenantId": "tenant_dev",
+  "maxParallel": 3,
+  "items": [
+    { "jobId": "invoice_sync", "label": "invoice-sync", "input": { "tenantId": "acme" } },
+    { "jobId": "nightly_reconcile", "label": "reconcile", "input": { "ledger": "US" }, "continueOnError": true }
+  ]
+}
