@@ -2,7 +2,18 @@
 
 ## Deploy
 
-Build artifacts with `npm run build`, then container image via `docker build`. Set `JOBFLOW_CONFIG` to the environment JSON file.
+Build the image directly (TypeScript compiles inside Docker; no local `dist/` required):
+
+```bash
+docker build -t jobflow-engine .
+docker compose up --build
+```
+
+Set `JOBFLOW_CONFIG` to the environment JSON file. Override the Node base image if needed:
+
+```bash
+docker build --build-arg NODE_IMAGE=node:22-bookworm-slim -t jobflow-engine .
+```
 
 ## Auth
 

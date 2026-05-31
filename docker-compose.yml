@@ -1,6 +1,8 @@
 services:
   jobflow:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "4100:4100"
     environment:

@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.github
+tools
+*.zip
+coverage
+*.md
+!README.md
+.env
+.env.*
+terminals
