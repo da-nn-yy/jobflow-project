@@ -1,7 +1,6 @@
 import type { TenantContext, TenantId } from "../domain/tenant.js";
 import { DEFAULT_QUOTAS } from "../domain/tenant.js";
-import { InMemoryRunStore } from "../storage/memory/run-store.js";
-import type { JobDefinitionStore } from "../storage/interfaces.js";
+import type { JobDefinitionStore, RunStore } from "../storage/interfaces.js";
 import { JobflowError } from "../domain/errors.js";
 
 export class TenantService {
@@ -9,7 +8,7 @@ export class TenantService {
 
   constructor(
     private readonly jobStore: JobDefinitionStore,
-    private readonly runStore: InMemoryRunStore,
+    private readonly runStore: RunStore,
   ) {}
 
   register(tenantId: TenantId, environment: TenantContext["environment"]): TenantContext {

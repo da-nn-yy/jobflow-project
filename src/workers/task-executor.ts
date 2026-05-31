@@ -40,7 +40,13 @@ export class TaskExecutor {
     });
 
     try {
-      const result = await this.simulator.execute(definition.handler, input);
+      const priorOutputs: Record<string, Record<string, unknown>> = {};
+      const result = await this.simulator.execute(definition.handler, input, {
+        runId: taskRun.runId,
+        taskId: taskRun.definitionTaskId,
+        input,
+        priorOutputs,
+      });
       if (!result.success) {
         return this.handleFailure(running, policy, result.errorMessage ?? "unknown error");
       }

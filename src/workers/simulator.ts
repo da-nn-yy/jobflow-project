@@ -1,4 +1,6 @@
 import type { EngineConfig } from "../config/defaults.js";
+import type { HandlerImplementationRegistry } from "../handlers/implementations/registry.js";
+import type { HandlerContext } from "../handlers/implementations/base.js";
 
 export interface SimulatedResult {
   success: boolean;
@@ -8,9 +10,33 @@ export interface SimulatedResult {
 }
 
 export class TaskSimulator {
-  constructor(private readonly config: EngineConfig) {}
+  constructor(
+    private readonly config: EngineConfig,
+    private readonly implementations?: HandlerImplementationRegistry,
+  ) {}
 
-  async execute(handler: string, input: Record<string, unknown>): Promise<SimulatedResult> {
+  async execute(
+    handler: string,
+    input: Record<string, unknown>,
+    execCtx?: HandlerContext,
+  ): Promise<SimulatedResult> {
+    const impl = this.implementations?.get(handler);
+    if (impl && execCtx) {
+      const started = Date.now();
+      const result = await impl.execute(execCtx, {
+        id: execCtx.taskId,
+        name: handler,
+        handler,
+        timeoutMs: 30_000,
+      });
+      return {
+        success: result.success,
+        output: result.output,
+        latencyMs: Date.now() - started,
+        errorMessage: result.success ? undefined : String(result.output.error ?? "handler failed"),
+      };
+    }
+
     const latencyMs = this.randomLatency();
     await this.sleep(latencyMs);
 

@@ -32,6 +32,13 @@ import { EventBus } from "./services/event-bus.js";
 import { BatchService } from "./services/batch-service.js";
 import { HandlerRegistry } from "./handlers/registry.js";
 import { HandlerResolver } from "./handlers/resolver.js";
+import { HandlerImplementationRegistry } from "./handlers/implementations/registry.js";
+import { SqlJobRepository } from "./storage/sql/job-repository.js";
+import { SqlRunRepository } from "./storage/sql/run-repository.js";
+import { CatalogLoader } from "./definitions/loader.js";
+import { MigrationRunner } from "./migrations/runner.js";
+import { DslService } from "./services/dsl-service.js";
+import { AnalyticsService } from "./services/analytics-service.js";
 import { MetricsRegistry } from "./metrics/registry.js";
 import { MetricsCollector } from "./metrics/collector.js";
 import { InMemoryAuditSink } from "./audit/memory-sink.js";
@@ -81,6 +88,11 @@ export interface AppContainer {
   recoveryService: RecoveryService;
   httpInvoker: HttpHandlerInvoker;
   pluginLoader: PluginLoader;
+  catalogLoader: CatalogLoader;
+  dslService: DslService;
+  analyticsService: AnalyticsService;
+  migrationRunner: MigrationRunner;
+  handlerImplementations: HandlerImplementationRegistry;
 }
 
 export function createContainer(config?: EngineConfig): AppContainer {
@@ -88,9 +100,9 @@ export function createContainer(config?: EngineConfig): AppContainer {
   const clock = new SystemClock();
   const log = createLogger(resolved);
 
-  const jobStore = new InMemoryJobStore();
+  const jobStore = new SqlJobRepository(new InMemoryJobStore());
   const workflowStore = new InMemoryWorkflowStore();
-  const runStore = new InMemoryRunStore();
+  const runStore = new SqlRunRepository(new InMemoryRunStore());
   const deadLetterStore = new InMemoryDeadLetterStore();
   const scheduleStore = new InMemoryScheduleStore();
   const webhookStore = new InMemoryWebhookStore();
@@ -115,9 +127,10 @@ export function createContainer(config?: EngineConfig): AppContainer {
 
   const handlerRegistry = new HandlerRegistry();
   const handlerResolver = new HandlerResolver(handlerRegistry);
+  const handlerImplementations = new HandlerImplementationRegistry();
 
   const taskExecutor = new TaskExecutor(
-    new TaskSimulator(resolved),
+    new TaskSimulator(resolved, handlerImplementations),
     new RetryHandler(clock),
     clock,
     log.child({ component: "executor" }),
@@ -154,6 +167,10 @@ export function createContainer(config?: EngineConfig): AppContainer {
 
   const jobService = new JobService(jobStore, clock, log.child({ component: "jobs" }), handlerRegistry, handlerResolver);
   const workflowService = new WorkflowService(jobStore, workflowStore, runStore, clock);
+  const catalogLoader = new CatalogLoader(jobStore, log.child({ component: "catalog" }));
+  const dslService = new DslService(jobService);
+  const analyticsService = new AnalyticsService(workflowService);
+  const migrationRunner = new MigrationRunner(log.child({ component: "migrations" }));
   const scheduleService = new ScheduleService(scheduleStore, clock);
   const recoveryService = new RecoveryService(new CheckpointStore(), workflowStore, clock, log);
 
@@ -211,5 +228,10 @@ export function createContainer(config?: EngineConfig): AppContainer {
     recoveryService,
     httpInvoker: new HttpHandlerInvoker(log.child({ component: "http-handlers" })),
     pluginLoader: new PluginLoader(),
+    catalogLoader,
+    dslService,
+    analyticsService,
+    migrationRunner,
+    handlerImplementations,
   };
 }

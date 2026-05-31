@@ -6,6 +6,8 @@ import { registerAdminRoutes } from "./admin-routes.js";
 import { registerScheduleRoutes } from "./schedule-routes.js";
 import { registerWebhookRoutes } from "./webhook-routes.js";
 import { registerV2Routes } from "./v2/routes.js";
+import { registerDslRoutes } from "./dsl-routes.js";
+import { registerAnalyticsRoutes } from "./analytics-routes.js";
 import { registerRequestContext } from "../middleware/request-context.js";
 import { registerRateLimit } from "../middleware/rate-limit.js";
 import { registerAuthHook } from "../middleware/auth-hook.js";
@@ -37,6 +39,9 @@ export async function createServer(config: EngineConfig, container: AppContainer
     handlers: container.handlerRegistry,
     metrics: container.metricsRegistry,
   });
+
+  registerDslRoutes(app, container.dslService);
+  registerAnalyticsRoutes(app, container.analyticsService);
 
   registerV2Routes(app, {
     batch: container.batchCoordinator,

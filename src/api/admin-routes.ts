@@ -5,6 +5,7 @@ import type { AuditService } from "../services/audit-service.js";
 import type { HandlerRegistry } from "../handlers/registry.js";
 import type { MetricsRegistry } from "../metrics/registry.js";
 import { formatPrometheus } from "../metrics/prometheus.js";
+import { openApiJson } from "../openapi/spec.js";
 import { paginate } from "../utils/pagination.js";
 
 export function registerAdminRoutes(
@@ -17,6 +18,11 @@ export function registerAdminRoutes(
     metrics: MetricsRegistry;
   },
 ): void {
+  app.get("/openapi.json", async (_req, reply) => {
+    reply.header("content-type", "application/json");
+    return openApiJson();
+  });
+
   app.get("/metrics", async (_req, reply) => {
     reply.header("content-type", "text/plain; version=0.0.4");
     return formatPrometheus(deps.metrics);
