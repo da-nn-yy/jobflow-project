@@ -1,0 +1,12 @@
+__pycache__
+.venv
+venv
+.git
+.github
+tests
+htmlcov
+.coverage
+.pytest_cache
+*.zip
+*.md
+!README.md
