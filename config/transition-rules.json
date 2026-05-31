@@ -1,0 +1,13 @@
+[
+  { "from": "draft", "to": "pending", "event": "submit" },
+  { "from": "pending", "to": "running", "event": "start" },
+  { "from": "running", "to": "waiting", "event": "await" },
+  { "from": "waiting", "to": "running", "event": "resume" },
+  { "from": "running", "to": "completed", "event": "complete" },
+  { "from": "running", "to": "failed", "event": "fail" },
+  { "from": "waiting", "to": "failed", "event": "fail" },
+  { "from": "failed", "to": "running", "event": "retry" },
+  { "from": "failed", "to": "dead_lettered", "event": "dead_letter" },
+  { "from": "pending", "to": "cancelled", "event": "cancel" },
+  { "from": "running", "to": "cancelled", "event": "cancel" }
+]

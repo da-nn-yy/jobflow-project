@@ -1,0 +1,14 @@
+{
+  "port": 4100,
+  "workerConcurrency": 4,
+  "defaultTaskTimeoutMs": 30000,
+  "defaultRetryPolicy": {
+    "maxAttempts": 3,
+    "initialDelayMs": 500,
+    "backoffMultiplier": 2,
+    "maxDelayMs": 30000
+  },
+  "logLevel": "info",
+  "simulateLatencyMs": { "min": 5, "max": 80 },
+  "failRatePercent": 0
+}
