@@ -11,6 +11,7 @@
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "worker": "tsx scripts/run-worker.ts",
     "seed": "tsx scripts/seed-jobs.ts"
@@ -23,6 +24,7 @@
     "@types/node": "^20.14.10",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",
+    "@vitest/coverage-v8": "^2.1.9",
     "vitest": "^2.0.5"
   }
 }

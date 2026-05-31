@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ApiKeyAuthenticator } from "../security/auth.js";
 import type { TenantId } from "../domain/tenant.js";
 
-const PUBLIC_PATHS = new Set(["/health", "/metrics"]);
+const PUBLIC_PATHS = new Set(["/health", "/metrics", "/openapi.json"]);
 
 export function registerAuthHook(app: FastifyInstance, auth: ApiKeyAuthenticator): void {
   app.addHook("preHandler", async (req: FastifyRequest, reply: FastifyReply) => {

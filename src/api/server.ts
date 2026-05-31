@@ -12,7 +12,7 @@ import { registerRequestContext } from "../middleware/request-context.js";
 import { registerRateLimit } from "../middleware/rate-limit.js";
 import { registerAuthHook } from "../middleware/auth-hook.js";
 
-export async function createServer(config: EngineConfig, container: AppContainer) {
+export function buildApp(container: AppContainer) {
   const app = Fastify({ logger: false });
 
   registerRequestContext(app);
@@ -52,6 +52,11 @@ export async function createServer(config: EngineConfig, container: AppContainer
     importer: container.jobImporter,
   });
 
+  return app;
+}
+
+export async function createServer(config: EngineConfig, container: AppContainer) {
+  const app = buildApp(container);
   await app.listen({ port: config.port, host: "0.0.0.0" });
   container.cronTicker.start();
   container.log.info("server listening", { port: config.port });
