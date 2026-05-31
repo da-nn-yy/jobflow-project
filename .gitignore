@@ -3,6 +3,7 @@ dist/
 tools/
 data/journal/
 data/snapshots/
+*.zip
 coverage/
 *.log
 .env
