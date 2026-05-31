@@ -9,11 +9,7 @@ docker build -t jobflow-engine .
 docker compose up --build
 ```
 
-Set `JOBFLOW_CONFIG` to the environment JSON file. Override the Node base image if needed:
-
-```bash
-docker build --build-arg NODE_IMAGE=node:22-bookworm-slim -t jobflow-engine .
-```
+Set `JOBFLOW_CONFIG` to the environment JSON file. The Dockerfile pins `node:20.14.0-bookworm-slim` (required by the submission platform).
 
 ## Auth
 

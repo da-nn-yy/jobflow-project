@@ -5,8 +5,9 @@ dist
 tools
 *.zip
 coverage
-*.md
-!README.md
 .env
 .env.*
 terminals
+tests
+vitest.config.ts
+jobflow-submission.zip
